@@ -1,36 +1,230 @@
 import 'package:flutter/material.dart';
+import 'api_client.dart';
+import 'api_models.dart';
+import 'api_services.dart';
 import 'components.dart';
 import 'mock_services.dart';
 import 'models.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.session});
+  const LoginScreen({
+    super.key,
+    required this.session,
+    this.authService,
+    this.mockFallbackService,
+  });
+
   final StudentSession session;
-  @override State<LoginScreen> createState() => _LoginScreenState();
+  final AuthApiService? authService;
+  final MockAuthService? mockFallbackService;
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
 }
+
 class _LoginScreenState extends State<LoginScreen> {
-  final email=TextEditingController(text:'student@eduos.app');
-  final password=TextEditingController(text:'demo123');
-  bool loading=false; String? error;
-  @override void dispose(){email.dispose();password.dispose();super.dispose();}
-  Future<void> submit() async {
-    setState(()=>loading=true);
-    final ok=await MockAuthService().login(email.text,password.text);
-    if(!mounted)return;
-    if(!ok){setState(()=>{loading=false,error='Enter a valid email and password.'});return;}
-    Navigator.pushReplacement(context,MaterialPageRoute(builder:(_)=>DashboardScreen(session:widget.session)));
+  final email = TextEditingController(text: 'student@eduos.app');
+  final password = TextEditingController(text: 'demo123');
+  bool loading = false;
+  String? error;
+  bool showFallback = false;
+
+  AuthApiService get _authService =>
+      widget.authService ?? widget.session.authService;
+  MockAuthService get _mockService =>
+      widget.mockFallbackService ?? MockAuthService();
+
+  @override
+  void dispose() {
+    email.dispose();
+    password.dispose();
+    super.dispose();
   }
-  @override Widget build(BuildContext context)=>Scaffold(body:SafeArea(child:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:480),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    const Icon(Icons.psychology_alt_rounded,size:64),const SizedBox(height:16),
-    Text('EduOS',style:Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight:FontWeight.w900)),
-    const SizedBox(height:8),const Text('Learn anywhere. Test anywhere. Improve everywhere.'),const SizedBox(height:36),
-    Text('Student Login',style:Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight:FontWeight.w800)),const SizedBox(height:18),
-    TextField(controller:email,decoration:const InputDecoration(labelText:'Email',prefixIcon:Icon(Icons.email_outlined))),const SizedBox(height:14),
-    TextField(controller:password,obscureText:true,decoration:const InputDecoration(labelText:'Password',prefixIcon:Icon(Icons.lock_outline))),
-    if(error!=null)Padding(padding:const EdgeInsets.only(top:12),child:Text(error!,style:TextStyle(color:Colors.red))),const SizedBox(height:22),
-    PrimaryButton(label:loading?'Signing in...':'Continue as Student',icon:Icons.login_rounded,onPressed:loading?null:submit),const SizedBox(height:12),
-    const Text('Demo mode uses a local mock service. Real authentication will use the backend contract.',style:TextStyle(color:Colors.black54)),
-  ]))))));
+
+  Future<void> submit() async {
+    final emailText = email.text.trim();
+    final passwordText = password.text;
+
+    if (emailText.isEmpty || passwordText.isEmpty) {
+      setState(() {
+        error = 'Enter a valid email and password.';
+        showFallback = false;
+      });
+      return;
+    }
+
+    setState(() {
+      loading = true;
+      error = null;
+      showFallback = false;
+    });
+
+    try {
+      final authResponse = await _authService.login(
+        email: emailText,
+        password: passwordText,
+      );
+
+      if (!mounted) return;
+
+      widget.session.setAuth(
+        accessToken: authResponse.accessToken,
+        refreshToken: authResponse.refreshToken,
+        tokenType: authResponse.tokenType,
+        user: authResponse.user,
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DashboardScreen(session: widget.session),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        loading = false;
+        if (e.statusCode == 401) {
+          error = e.message.isNotEmpty
+              ? e.message
+              : 'Invalid email or password.';
+          showFallback = false;
+        } else if (e.statusCode != null && e.statusCode! >= 500) {
+          error = 'Server error (${e.statusCode}): ${e.message}';
+          showFallback = true;
+        } else {
+          error = e.message;
+          showFallback = false;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        loading = false;
+        error = 'Backend unavailable. Could not connect to API server.';
+        showFallback = true;
+      });
+    }
+  }
+
+  Future<void> _loginWithFallback() async {
+    setState(() {
+      loading = true;
+      error = null;
+    });
+
+    final ok = await _mockService.login(email.text, password.text);
+    if (!mounted) return;
+
+    if (!ok) {
+      setState(() {
+        loading = false;
+        error = 'Enter a valid email and password for demo mode.';
+      });
+      return;
+    }
+
+    widget.session.setAuth(
+      accessToken: 'mock-offline-token',
+      tokenType: 'bearer',
+      user: const AuthUserDto(
+        id: 'mock-student-id',
+        role: 'STUDENT',
+        displayName: 'Student',
+      ),
+    );
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DashboardScreen(session: widget.session),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.psychology_alt_rounded, size: 64),
+                    const SizedBox(height: 16),
+                    Text(
+                      'EduOS',
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Learn anywhere. Test anywhere. Improve everywhere.',
+                    ),
+                    const SizedBox(height: 36),
+                    Text(
+                      'Student Login',
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                    ),
+                    const SizedBox(height: 18),
+                    TextField(
+                      controller: email,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: password,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: Icon(Icons.lock_outline),
+                      ),
+                    ),
+                    if (error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          error!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    if (showFallback) ...[
+                      const SizedBox(height: 10),
+                      TextButton.icon(
+                        onPressed: loading ? null : _loginWithFallback,
+                        icon: const Icon(Icons.offline_bolt_outlined, size: 18),
+                        label: const Text('Continue with Demo / Mock fallback'),
+                      ),
+                    ],
+                    const SizedBox(height: 22),
+                    PrimaryButton(
+                      label: loading ? 'Signing in...' : 'Continue as Student',
+                      icon: Icons.login_rounded,
+                      onPressed: loading ? null : submit,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Demo mode uses a local mock service. Real authentication will use the backend contract.',
+                      style: TextStyle(color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
 class DashboardScreen extends StatelessWidget {

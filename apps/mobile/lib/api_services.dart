@@ -5,7 +5,18 @@ class AuthApiService {
   const AuthApiService(this.client);
   final ApiClient client;
 
-  Future<Map<String, dynamic>> login({
+  Future<AuthResponseDto> login({
+    required String email,
+    required String password,
+  }) async {
+    final response = await client.post('/auth/login', body: {
+      'email': email,
+      'password': password,
+    });
+    return AuthResponseDto.fromJson(response);
+  }
+
+  Future<Map<String, dynamic>> loginRaw({
     required String email,
     required String password,
   }) =>

@@ -1,5 +1,10 @@
 import 'package:flutter/foundation.dart';
 
+import 'api_client.dart';
+import 'api_config.dart';
+import 'api_models.dart';
+import 'api_services.dart';
+
 class AssessmentQuestion {
   const AssessmentQuestion({
     required this.id,
@@ -63,6 +68,49 @@ class ConceptProgress {
 }
 
 class StudentSession extends ChangeNotifier {
+  StudentSession({
+    ApiClient? client,
+    AuthApiService? authService,
+  }) {
+    apiClient = client ??
+        ApiClient(
+          baseUrl: ApiConfig.baseUrl,
+          accessTokenProvider: () async => accessToken,
+        );
+    this.authService = authService ?? AuthApiService(apiClient);
+  }
+
+  late final ApiClient apiClient;
+  late final AuthApiService authService;
+
+  String? accessToken;
+  String? refreshToken;
+  String? tokenType;
+  AuthUserDto? user;
+
+  bool get isAuthenticated => accessToken != null && accessToken!.isNotEmpty;
+
+  void setAuth({
+    required String accessToken,
+    String? refreshToken,
+    String? tokenType,
+    AuthUserDto? user,
+  }) {
+    this.accessToken = accessToken;
+    this.refreshToken = refreshToken;
+    this.tokenType = tokenType ?? 'bearer';
+    this.user = user;
+    notifyListeners();
+  }
+
+  void clearAuth() {
+    accessToken = null;
+    refreshToken = null;
+    tokenType = null;
+    user = null;
+    notifyListeners();
+  }
+
   int overallMastery = 68;
   final Map<String, int> conceptMastery = {
     'Factorization': 41,

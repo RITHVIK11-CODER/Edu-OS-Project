@@ -10,10 +10,51 @@ class AuthUserDto {
   final String displayName;
 
   factory AuthUserDto.fromJson(Map<String, dynamic> json) => AuthUserDto(
-        id: json['id'].toString(),
-        role: json['role'].toString(),
+        id: (json['id'] ?? '').toString(),
+        role: (json['role'] ?? 'STUDENT').toString(),
         displayName: (json['display_name'] ?? '').toString(),
       );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'role': role,
+        'display_name': displayName,
+      };
+}
+
+class AuthResponseDto {
+  const AuthResponseDto({
+    required this.accessToken,
+    this.refreshToken,
+    this.tokenType = 'bearer',
+    required this.user,
+  });
+
+  final String accessToken;
+  final String? refreshToken;
+  final String tokenType;
+  final AuthUserDto user;
+
+  factory AuthResponseDto.fromJson(Map<String, dynamic> json) {
+    final userRaw = json['user'];
+    final userMap = userRaw is Map<String, dynamic>
+        ? userRaw
+        : <String, dynamic>{};
+
+    return AuthResponseDto(
+      accessToken: (json['access_token'] ?? '').toString(),
+      refreshToken: json['refresh_token']?.toString(),
+      tokenType: (json['token_type'] ?? 'bearer').toString(),
+      user: AuthUserDto.fromJson(userMap),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'access_token': accessToken,
+        if (refreshToken != null) 'refresh_token': refreshToken,
+        'token_type': tokenType,
+        'user': user.toJson(),
+      };
 }
 
 class StudentProfileDto {
