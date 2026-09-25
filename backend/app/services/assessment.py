@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import HTTPException
 from app.database.supabase import supabase
 from app.services.student import student_for_user
