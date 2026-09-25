@@ -11,10 +11,10 @@ export default function App(){
  const [loading,setLoading]=useState(false),[error,setError]=useState(''),[usingMock,setUsingMock]=useState(false);
  const [student,setStudent]=useState<any>(null),[twin,setTwin]=useState<any>(null),[attempt,setAttempt]=useState<any>(null),[question,setQuestion]=useState<any>(null),[result,setResult]=useState<any>(null),[analysis,setAnalysis]=useState<any>(null),[recommendation,setRecommendation]=useState<any>(null);
 
- const run=async<T>(work:()=>Promise<T>,fallback:T|null=null)=>{
+ async function run<T>(work:()=>Promise<T>,fallback:T|null=null):Promise<T|null>{
   setLoading(true);setError('');
   try{return await work()}catch(e){setError(e instanceof Error?e.message:'Something went wrong');if(fallback!==null){setUsingMock(true);return fallback}return null}finally{setLoading(false)}
- };
+ }
  useEffect(()=>{if(screen==='dashboard'&&localStorage.getItem('eduos_access_token'))void run(async()=>{const [s,t]=await Promise.all([api.student(),api.twin()]);setStudent(s);setTwin(t);return true},true)},[screen]);
  const signIn=async()=>{if(!email||!password){setError('Enter email and password.');return}const data=await run(()=>api.login(email,password));if(data){setUsingMock(false);setScreen('dashboard')}};
  const startAssessment=async()=>{const assessments=await run(()=>api.assessments(),[]);const list=Array.isArray(assessments)?assessments:[];const selected=list.find((x:any)=>String(x?.name??x?.title??'').toLowerCase().includes(topic.toLowerCase()));if(selected?.id){const a=await run(()=>api.start(String(selected.id)));const qs=await run(()=>api.questions(String(selected.id)),[]);setAttempt(a);setQuestion(Array.isArray(qs)?qs[0]:null)}setScreen('assessment')};
