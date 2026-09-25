@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import HTTPException
 from app.database.supabase import supabase
 from app.services.student import student_for_user
@@ -19,7 +21,6 @@ def start(assessment_id:str,user_id:str)->dict:
     return {"attempt_id":row[0]["id"],"status":row[0]["status"],"started_at":row[0]["started_at"]}
 
 def questions(assessment_id:str,user_id:str)->list[dict]:
-    # Verify the student has an active attempt for this assessment before exposing questions.
     student=student_for_user(user_id)
     attempts=(supabase.table("assessment_attempts").select("id").eq("assessment_id",assessment_id).eq("student_id",student["id"]).eq("status","IN_PROGRESS").limit(1).execute()).data or []
     if not attempts: raise HTTPException(status_code=403,detail="Start the assessment first")
@@ -54,7 +55,7 @@ def submit(attempt_id:str,user_id:str)->dict:
         correct+=1 if ok else 0
         supabase.table("assessment_answers").update({"is_correct":ok}).eq("id",row["id"]).execute()
     total=len(rows);score=round(correct*100/total,2)
-    updated=(supabase.table("assessment_attempts").update({"status":"SUBMITTED","submitted_at":datetime.now(timezone.utc).isoformat(),"score":score}).eq("id",attempt_id).execute()).data
+    supabase.table("assessment_attempts").update({"status":"SUBMITTED","submitted_at":datetime.now(timezone.utc).isoformat(),"score":score}).eq("id",attempt_id).execute()
     return {"attempt_id":attempt_id,"status":"SUBMITTED","score":score}
 
 def result(attempt_id:str,user_id:str)->dict:
