@@ -63,3 +63,54 @@ button{border:0;border-radius:12px;background:#635bff;color:#fff;padding:13px 19
  .mobile-nav button{flex:1;background:transparent;color:#637694;box-shadow:none;border-radius:10px;padding:5px;font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px}
  .mobile-nav button span{font-size:21px;line-height:1}.mobile-nav button.active{color:#1748b5}.mobile-nav button.active span{font-weight:800}
 }
+
+/* Reference-inspired polish for the complete learning loop */
+.shell{color:#183052}
+.shell h1{color:#102744}
+.shell .muted{color:#71809a}
+.topic-grid{margin-top:28px}
+.topic-card{border-radius:8px;padding:24px;background:#fff;border-color:#d7e0eb}
+.topic-card.selected{border:2px solid #1b5bb8;background:#f5f9ff}
+.topic-number{background:#e7f1ff;color:#1768c7}
+.topic-card b{color:#102744}
+.topic-card em{color:#6f8099}
+.primary{background:#1858b8;border-radius:7px;box-shadow:0 6px 16px rgba(24,88,184,.18)}
+.primary:hover{background:#12499c}
+.assessment-top{padding-top:4px}
+.assessment-top h1{color:#102744}
+.progress-line{background:#e5ebf2;height:7px}.progress-line i{background:#1b66c9}
+.question-card{max-width:850px;border-radius:9px;border-color:#d6e0ec;box-shadow:0 10px 30px rgba(35,62,100,.06);padding:42px}
+.question-card .tag,.tag{background:#e8f2ff;color:#1768c7}
+.question-card h2{color:#0e2949}
+.question-card input{border-color:#cfd9e6;background:#fbfdff;border-radius:7px}
+.question-card input:focus{border-color:#2c70ca;box-shadow:0 0 0 4px rgba(44,112,202,.10)}
+.center-page{margin:55px auto;max-width:680px}
+.success-icon{background:#e8f7ef;color:#15945a}
+.result-score{border-radius:9px;border-color:#d7e0eb}
+.result-score strong{color:#12345b}
+.analysis-grid{gap:18px}
+.analysis-main.card,.confidence-card.card{border-radius:9px;border-color:#d7e0eb;box-shadow:0 8px 25px rgba(35,62,100,.05)}
+.analysis-status{background:#fff0d9;color:#d77c00}
+.analysis-main h2{color:#102744}
+.confidence-ring{background:radial-gradient(circle,#fff 57%,transparent 58%),conic-gradient(#1d63bd 86%,#e9edf3 0);color:#1d63bd}
+.twin-update{max-width:820px;border-radius:9px;border-color:#d7e0eb;box-shadow:0 8px 25px rgba(35,62,100,.05);padding:7px 28px}
+.update-row strong{color:#17385f}
+.recommend-card{max-width:850px;background:#fff;border:1px solid #d7e0eb;border-radius:9px;box-shadow:0 8px 25px rgba(35,62,100,.05)}
+.path-icon{background:#e8f2ff;color:#1768c7;border-radius:9px}
+.pill{background:#fff1dc;color:#d77c00}
+.practice-card{max-width:850px;border-radius:9px;border-color:#d7e0eb;box-shadow:0 8px 25px rgba(35,62,100,.05)}
+.practice-card h2{color:#102744}
+.answers button{border-radius:8px;color:#183052;background:#fff;border-color:#d4dfeb}
+.answers button:hover{background:#f4f8fd;border-color:#1b66c9;color:#124f9f}
+.twin-grid{gap:18px}
+.twin-card{border-radius:9px;border-color:#d7e0eb;box-shadow:0 8px 25px rgba(35,62,100,.04)}
+.twin-card strong{color:#102744}
+.twin-card .bar{background:#e7edf4}.twin-card .bar i{background:#1b66c9}
+
+@media(max-width:600px){
+ .question-card{padding:26px}
+ .analysis-grid{grid-template-columns:1fr}
+ .twin-update{padding:4px 20px}
+ .update-row{align-items:flex-start}
+ .update-row strong{max-width:58%}
+}
