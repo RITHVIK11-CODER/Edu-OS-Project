@@ -4,29 +4,7 @@ import 'api_models.dart';
 class AuthApiService {
   const AuthApiService(this.client);
   final ApiClient client;
-
-  Future<AuthResponseDto> login({
-    required String email,
-    required String password,
-  }) async {
-    final response = await client.post('/auth/login', body: {
-      'email': email,
-      'password': password,
-    });
-    return AuthResponseDto.fromJson(response);
-  }
-
-  Future<Map<String, dynamic>> loginRaw({
-    required String email,
-    required String password,
-  }) =>
-      client.post('/auth/login', body: {
-        'email': email,
-        'password': password,
-      });
-
-  Future<AuthUserDto> me() async =>
-      AuthUserDto.fromJson(await client.get('/auth/me'));
+  Future<AuthUserDto> me() async => AuthUserDto.fromJson(await client.get('/auth/me'));
 }
 
 class StudentApiService {
