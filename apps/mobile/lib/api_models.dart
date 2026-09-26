@@ -11,7 +11,7 @@ class AuthUserDto {
 
   factory AuthUserDto.fromJson(Map<String, dynamic> json) => AuthUserDto(
         id: (json['id'] ?? '').toString(),
-        role: (json['role'] ?? 'STUDENT').toString(),
+        role: json['role'].toString(),
         displayName: (json['display_name'] ?? '').toString(),
       );
 
