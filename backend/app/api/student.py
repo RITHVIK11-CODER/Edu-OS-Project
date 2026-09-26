@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, require_student
 from app.services.student import student_for_user, learning_twin
 
 router=APIRouter(prefix="/students",tags=["Students"])
 
 @router.get("/me")
-async def me(current_user:dict=Depends(get_current_user)):
+async def me(current_user:dict=Depends(require_student)):
     return {"success":True,"data":{**student_for_user(current_user["id"]),"user_id":current_user["id"],"display_name":current_user.get("display_name")}}
 
 @router.get("/me/learning-twin")
