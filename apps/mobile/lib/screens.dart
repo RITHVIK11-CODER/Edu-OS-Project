@@ -127,7 +127,7 @@ class TopicScreen extends StatelessWidget {
  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Grade 10 Mathematics')),body:ListView(padding:const EdgeInsets.all(20),children:[const EduHeader(title:'Choose a topic',subtitle:'SmartAssess adapts to your current learning state.'),const SizedBox(height:10),
   _TopicCard(title:'Factorization',mastery:session.conceptMastery['Factorization']??0,icon:Icons.account_tree_rounded,onTap:()=>start(context,'Factorization')),
   _TopicCard(title:'Quadratic Equations',mastery:session.conceptMastery['Quadratic Equations']??0,icon:Icons.show_chart_rounded,onTap:()=>start(context,'Quadratic Equations')),
-])));
+]));
 }
 
 class AssessmentScreen extends StatefulWidget {
