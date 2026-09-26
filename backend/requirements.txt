@@ -5,6 +5,7 @@ pydantic-settings
 python-dotenv
 supabase
 httpx
+email-validator
 google-generativeai
 pytest
 pytest-asyncio
