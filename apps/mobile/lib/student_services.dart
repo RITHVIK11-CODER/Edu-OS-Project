@@ -3,7 +3,7 @@ import 'api_models.dart';
 import 'api_services.dart';
 
 abstract interface class StudentAppServices {
-  Future<AuthResponseDto> login(String email, String password);
+  Future<AuthUserDto> currentUser();
   Future<LearningTwinDto> learningTwin();
   Future<AssessmentAttemptDto> startAssessment(String assessmentId);
   Future<void> submitAnswer({
@@ -29,8 +29,7 @@ class BackendStudentAppServices implements StudentAppServices {
   final PathAiApiService pathAi;
 
   @override
-  Future<AuthResponseDto> login(String email, String password) =>
-      auth.login(email: email, password: password);
+  Future<AuthUserDto> currentUser() => auth.me();
 
   @override
   Future<LearningTwinDto> learningTwin() => twin.me();
