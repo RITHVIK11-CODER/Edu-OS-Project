@@ -11,6 +11,10 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    env:
+      SUPABASE_URL: https://ci.invalid
+      SUPABASE_ANON_KEY: ci-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
