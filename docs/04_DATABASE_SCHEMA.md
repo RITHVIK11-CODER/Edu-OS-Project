@@ -72,6 +72,8 @@ Fields:
 Roles:
 - STUDENT
 - TEACHER
+- PARENT
+- PRINCIPAL
 - ADMIN
 
 Do not store passwords.
