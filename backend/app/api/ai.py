@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, require_student
 from app.database.supabase import supabase
 from app.schemas.ai import MindTraceRequest, PathAIRequest
 from app.services.student import student_for_user
@@ -14,7 +14,7 @@ def _answer(answer_id:str,user_id:str):
     return rows[0],student
 
 @router.post("/mindtrace/analyze")
-async def mindtrace(payload:MindTraceRequest,current_user:dict=Depends(get_current_user)):
+async def mindtrace(payload:MindTraceRequest,current_user:dict=Depends(require_student)):
     found=_answer(payload.answer_id,current_user["id"])
     if not found: return {"success":False,"error":{"code":"NOT_FOUND","message":"Answer not found"}}
     row,student=found
