@@ -51,49 +51,24 @@
 
 ## 2. Authentication
 
-### POST `/auth/register`
+Supabase Auth is the only authentication system. The web and mobile clients call Supabase Auth directly for email/password sign-in and session refresh, then send the Supabase access token as a Bearer token to FastAPI.
 
-Creates an account through Supabase Auth.
+### GET \`/auth/me\`
 
-Request:
+Returns the trusted application identity resolved from \`public.users\`:
 
 ```json
 {
+  "id": "uuid",
   "email": "student@example.com",
-  "password": "strong-password",
-  "display_name": "Arjun",
+  "display_name": "Student",
   "role": "STUDENT"
 }
 ```
 
-Validation:
-- email format;
-- password policy;
-- allowed role.
+There is intentionally no FastAPI login endpoint, no custom application token, no browser role authority, and no demo authentication path.
 
-The backend must not accept arbitrary privileged roles from untrusted clients. In production, teacher/admin creation should require an authorized workflow.
-
-### POST `/auth/login`
-
-Request:
-
-```json
-{
-  "email": "student@example.com",
-  "password": "strong-password"
-}
-```
-
-Response includes session/access information according to the chosen Supabase Auth integration.
-
-### GET `/auth/me`
-
-Returns:
-- user ID;
-- role;
-- display name.
-
----
+Application roles are exactly STUDENT, TEACHER, PARENT, PRINCIPAL, ADMIN.
 
 ## 3. Student APIs
 

@@ -1,38 +1,24 @@
 import 'package:flutter/material.dart';
-import 'api_client.dart';
-import 'api_models.dart';
-import 'api_services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'components.dart';
-import 'mock_services.dart';
 import 'models.dart';
+import 'mock_services.dart';
+import 'supabase_client.dart';
+
+class SessionGate extends StatefulWidget{const SessionGate({super.key,required this.session});final StudentSession session;@override State<SessionGate> createState()=>_SessionGateState();}
+class _SessionGateState extends State<SessionGate>{bool loading=true;String? error;@override void initState(){super.initState();_restore();}Future<void> _restore() async{final current=supabaseClient.auth.currentSession;if(current==null){setState(()=>loading=false);return;}try{widget.session.setAuth(accessToken:current.accessToken,refreshToken:current.refreshToken);final user=await widget.session.authService.me();if(user.role!='STUDENT')throw StateError('This mobile app is for STUDENT accounts only.');widget.session.setAuth(accessToken:current.accessToken,refreshToken:current.refreshToken,user:user);}catch(e){await supabaseClient.auth.signOut();widget.session.clearAuth();if(mounted)setState(()=>error=e.toString());}finally{if(mounted)setState(()=>loading=false);}}@override Widget build(BuildContext context){if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator()));if(error!=null)return Scaffold(body:Center(child:Padding(padding:const EdgeInsets.all(24),child:Text(error!))));if(!widget.session.isAuthenticated)return LoginScreen(session:widget.session);return DashboardScreen(session:widget.session);}}
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({
-    super.key,
-    required this.session,
-    this.authService,
-    this.mockFallbackService,
-  });
-
+  const LoginScreen({super.key, required this.session});
   final StudentSession session;
-  final AuthApiService? authService;
-  final MockAuthService? mockFallbackService;
-
-  @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  @override State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final email = TextEditingController(text: 'student@eduos.app');
-  final password = TextEditingController(text: 'demo123');
+  final email = TextEditingController();
+  final password = TextEditingController();
   bool loading = false;
   String? error;
-  bool showFallback = false;
-
-  AuthApiService get _authService =>
-      widget.authService ?? widget.session.authService;
-  MockAuthService get _mockService =>
-      widget.mockFallbackService ?? MockAuthService();
 
   @override
   void dispose() {
@@ -42,194 +28,91 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> submit() async {
-    final emailText = email.text.trim();
-    final passwordText = password.text;
-
-    if (emailText.isEmpty || passwordText.isEmpty) {
-      setState(() {
-        error = 'Enter a valid email and password.';
-        showFallback = false;
-      });
+    if (email.text.trim().isEmpty || password.text.isEmpty) {
+      setState(() => error = 'Enter a valid email and password.');
       return;
     }
-
-    setState(() {
-      loading = true;
-      error = null;
-      showFallback = false;
-    });
-
+    setState(() { loading = true; error = null; });
     try {
-      final authResponse = await _authService.login(
-        email: emailText,
-        password: passwordText,
+      final result = await supabaseClient.auth.signInWithPassword(
+        email: email.text.trim(),
+        password: password.text,
       );
-
-      if (!mounted) return;
-
+      final authUser = result.user;
+      final currentSession = result.session;
+      if (authUser == null || currentSession == null) {
+        throw StateError('Supabase sign-in did not return a session.');
+      }
       widget.session.setAuth(
-        accessToken: authResponse.accessToken,
-        refreshToken: authResponse.refreshToken,
-        tokenType: authResponse.tokenType,
-        user: authResponse.user,
+        accessToken: currentSession.accessToken,
+        refreshToken: currentSession.refreshToken,
       );
-
+      final user = await widget.session.authService.me();
+      if (user.role != 'STUDENT') {
+        await supabaseClient.auth.signOut();
+        widget.session.clearAuth();
+        throw StateError('This account has role ${user.role}; use the matching EduOS application.');
+      }
+      widget.session.setAuth(
+        accessToken: currentSession.accessToken,
+        refreshToken: currentSession.refreshToken,
+        user: user,
+      );
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => DashboardScreen(session: widget.session),
-        ),
+        MaterialPageRoute(builder: (_) => DashboardScreen(session: widget.session)),
       );
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        loading = false;
-        if (e.statusCode == 401) {
-          error = e.message.isNotEmpty
-              ? e.message
-              : 'Invalid email or password.';
-          showFallback = false;
-        } else if (e.statusCode != null && e.statusCode! >= 500) {
-          error = 'Server error (${e.statusCode}): ${e.message}';
-          showFallback = true;
-        } else {
-          error = e.message;
-          showFallback = false;
-        }
-      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         loading = false;
-        error = 'Backend unavailable. Could not connect to API server.';
-        showFallback = true;
+        error = e is AuthException ? e.message : e.toString();
       });
     }
-  }
-
-  Future<void> _loginWithFallback() async {
-    setState(() {
-      loading = true;
-      error = null;
-    });
-
-    final ok = await _mockService.login(email.text, password.text);
-    if (!mounted) return;
-
-    if (!ok) {
-      setState(() {
-        loading = false;
-        error = 'Enter a valid email and password for demo mode.';
-      });
-      return;
-    }
-
-    widget.session.setAuth(
-      accessToken: 'mock-offline-token',
-      tokenType: 'bearer',
-      user: const AuthUserDto(
-        id: 'mock-student-id',
-        role: 'STUDENT',
-        displayName: 'Student',
-      ),
-    );
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DashboardScreen(session: widget.session),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 480),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.psychology_alt_rounded, size: 64),
-                    const SizedBox(height: 16),
-                    Text(
-                      'EduOS',
-                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Learn anywhere. Test anywhere. Improve everywhere.',
-                    ),
-                    const SizedBox(height: 36),
-                    Text(
-                      'Student Login',
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
-                    ),
-                    const SizedBox(height: 18),
-                    TextField(
-                      controller: email,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.email_outlined),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: password,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock_outline),
-                      ),
-                    ),
-                    if (error != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Text(
-                          error!,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    if (showFallback) ...[
-                      const SizedBox(height: 10),
-                      TextButton.icon(
-                        onPressed: loading ? null : _loginWithFallback,
-                        icon: const Icon(Icons.offline_bolt_outlined, size: 18),
-                        label: const Text('Continue with Demo / Mock fallback'),
-                      ),
-                    ],
-                    const SizedBox(height: 22),
-                    PrimaryButton(
-                      label: loading ? 'Signing in...' : 'Continue as Student',
-                      icon: Icons.login_rounded,
-                      onPressed: loading ? null : submit,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Demo mode uses a local mock service. Real authentication will use the backend contract.',
-                      style: TextStyle(color: Colors.black54),
-                    ),
-                  ],
+    body: SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.psychology_alt_rounded, size: 64),
+                const SizedBox(height: 16),
+                const Text('EduOS', style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 8),
+                const Text('Secure AI-powered learning.'),
+                const SizedBox(height: 36),
+                Text('Sign in', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 18),
+                TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined))),
+                const SizedBox(height: 14),
+                TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock_outline))),
+                if (error != null) Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(error!, style: const TextStyle(color: Colors.red)),
                 ),
-              ),
+                const SizedBox(height: 22),
+                PrimaryButton(label: loading ? 'Signing in...' : 'Sign in', icon: Icons.login_rounded, onPressed: loading ? null : submit),
+                const SizedBox(height: 12),
+                const Text('Authentication is provided by Supabase Auth. No demo or mock login is available.', style: TextStyle(color: Colors.black54)),
+              ],
             ),
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
-
 class DashboardScreen extends StatelessWidget {
  const DashboardScreen({super.key,required this.session}); final StudentSession session;
- @override Widget build(BuildContext context)=>AnimatedBuilder(animation:session,builder:(context,_)=>Scaffold(appBar:AppBar(title:const Text('EduOS'),actions:[IconButton(tooltip:'EduTwin',onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ProgressScreen(session:session))),icon:const Icon(Icons.insights_rounded))]),body:ListView(padding:const EdgeInsets.all(20),children:[
+ @override Widget build(BuildContext context)=>AnimatedBuilder(animation:session,builder:(context,_)=>Scaffold(appBar:AppBar(title:const Text('EduOS'),actions:[IconButton(tooltip:'Sign out',onPressed:()async{await supabaseClient.auth.signOut();session.clearAuth();if(context.mounted)Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>LoginScreen(session:session)),(_)=>false);},icon:const Icon(Icons.logout_rounded)),IconButton(tooltip:'EduTwin',onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ProgressScreen(session:session))),icon:const Icon(Icons.insights_rounded))]),body:ListView(padding:const EdgeInsets.all(20),children:[
   Text('Good morning, Student 👋',style:Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight:FontWeight.w800)),const SizedBox(height:6),const Text('Your learning path adapts to what you need next.'),const SizedBox(height:20),
   Card(elevation:0,child:ListTile(contentPadding:const EdgeInsets.all(18),leading:CircularProgressIndicator(value:session.overallMastery/100),title:const Text('EduTwin',style:TextStyle(fontWeight:FontWeight.w800)),subtitle:Text('Overall mastery: '+session.overallMastery.toString()+'%'))),const SizedBox(height:18),
   Text('Continue learning',style:Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),const SizedBox(height:10),
@@ -244,7 +127,7 @@ class TopicScreen extends StatelessWidget {
  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Grade 10 Mathematics')),body:ListView(padding:const EdgeInsets.all(20),children:[const EduHeader(title:'Choose a topic',subtitle:'SmartAssess adapts to your current learning state.'),const SizedBox(height:10),
   _TopicCard(title:'Factorization',mastery:session.conceptMastery['Factorization']??0,icon:Icons.account_tree_rounded,onTap:()=>start(context,'Factorization')),
   _TopicCard(title:'Quadratic Equations',mastery:session.conceptMastery['Quadratic Equations']??0,icon:Icons.show_chart_rounded,onTap:()=>start(context,'Quadratic Equations')),
-])));
+]));
 }
 
 class AssessmentScreen extends StatefulWidget {
@@ -269,7 +152,7 @@ class RecommendationScreen extends StatelessWidget {
 }
 
 class PracticeScreen extends StatefulWidget {const PracticeScreen({super.key,required this.session});final StudentSession session;@override State<PracticeScreen> createState()=>_PracticeScreenState();}
-class _PracticeScreenState extends State<PracticeScreen>{final answer=TextEditingController();bool submitted=false;final q=const AssessmentQuestion(id:'p1',topic:'Factorization',question:'Factorize x² + 7x + 12',expectedAnswer:'(x + 3)(x + 4)');@override void dispose(){answer.dispose();super.dispose();}@override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Practice')),body:ListView(padding:const EdgeInsets.all(20),children:[const InfoChip(label:'Targeted Practice',icon:Icons.bolt_rounded),const SizedBox(height:16),Text(q.question,style:Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight:FontWeight.w800)),const SizedBox(height:18),TextField(controller:answer,decoration:const InputDecoration(labelText:'Your answer')),if(submitted)Padding(padding:const EdgeInsets.symmetric(vertical:16),child:Text(answer.text.trim().toLowerCase()==q.expectedAnswer.toLowerCase()?'Nice work. You are ready for reassessment.':'Try the factor-pair idea again.')),PrimaryButton(label:submitted?'Go to Reassessment':'Check Practice',onPressed:(){if(!submitted)setState(()=>submitted=true);else Navigator.push(context,MaterialPageRoute(builder:(_)=>ReassessmentScreen(session:session)));})]));}
+class _PracticeScreenState extends State<PracticeScreen>{final answer=TextEditingController();bool submitted=false;final q=const AssessmentQuestion(id:'p1',topic:'Factorization',question:'Factorize x² + 7x + 12',expectedAnswer:'(x + 3)(x + 4)');@override void dispose(){answer.dispose();super.dispose();}@override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Practice')),body:ListView(padding:const EdgeInsets.all(20),children:[const InfoChip(label:'Targeted Practice',icon:Icons.bolt_rounded),const SizedBox(height:16),Text(q.question,style:Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight:FontWeight.w800)),const SizedBox(height:18),TextField(controller:answer,decoration:const InputDecoration(labelText:'Your answer')),if(submitted)Padding(padding:const EdgeInsets.symmetric(vertical:16),child:Text(answer.text.trim().toLowerCase()==q.expectedAnswer.toLowerCase()?'Nice work. You are ready for reassessment.':'Try the factor-pair idea again.')),PrimaryButton(label:submitted?'Go to Reassessment':'Check Practice',onPressed:(){if(!submitted)setState(()=>submitted=true);else Navigator.push(context,MaterialPageRoute(builder:(_)=>ReassessmentScreen(session:widget.session)));})]));}
 
 class ReassessmentScreen extends StatefulWidget {const ReassessmentScreen({super.key,required this.session});final StudentSession session;@override State<ReassessmentScreen> createState()=>_ReassessmentScreenState();}
 class _ReassessmentScreenState extends State<ReassessmentScreen>{final answer=TextEditingController();bool submitted=false,correct=false;@override void dispose(){answer.dispose();super.dispose();}void submit(){final v=answer.text.trim().toLowerCase();correct=v=='(x + 2)(x + 3)'||v=='x = 2, 3';setState(()=>submitted=true);if(correct)widget.session.applyReassessment(concept:widget.session.lastAnalysis?.concept??'Factorization',correct:true);}@override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Reassessment')),body:ListView(padding:const EdgeInsets.all(20),children:[const InfoChip(label:'Reassess',icon:Icons.refresh_rounded),const SizedBox(height:16),Text('Factorize x² + 5x + 6',style:Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight:FontWeight.w800)),const SizedBox(height:18),TextField(controller:answer,decoration:const InputDecoration(labelText:'Your answer')),if(submitted)Padding(padding:const EdgeInsets.symmetric(vertical:18),child:Text(correct?'Great job! Your learning state improved.':'Not quite yet. Review the concept and try again.',style:const TextStyle(fontWeight:FontWeight.w700))),PrimaryButton(label:submitted?'View Updated EduTwin':'Submit Reassessment',icon:Icons.send_rounded,onPressed:submitted?()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ProgressScreen(session:widget.session))):submit)]));}

@@ -4,6 +4,7 @@ import 'api_client.dart';
 import 'api_config.dart';
 import 'api_models.dart';
 import 'api_services.dart';
+import 'supabase_client.dart';
 
 class AssessmentQuestion {
   const AssessmentQuestion({
@@ -75,7 +76,7 @@ class StudentSession extends ChangeNotifier {
     apiClient = client ??
         ApiClient(
           baseUrl: ApiConfig.baseUrl,
-          accessTokenProvider: () async => accessToken,
+          accessTokenProvider: () async => supabaseClient.auth.currentSession?.accessToken ?? accessToken,
         );
     this.authService = authService ?? AuthApiService(apiClient);
   }
